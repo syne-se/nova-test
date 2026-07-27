@@ -1,1 +1,2159 @@
-deleted
+--[[
+    NEXUS UI v2.0 COMPLETE - Full Executor-Optimized UI Library
+    EVERYTHING is here now - no missing functions!
+--]]
+
+-- ============================================
+-- SAFE SERVICE GETTER (Works on all executors)
+-- ============================================
+local function getService(serviceName)
+    local success, svc = pcall(function()
+        return game:GetService(serviceName)
+    end)
+    if success and svc then
+        return svc
+    end
+    success, svc = pcall(function()
+        return game:FindService(serviceName)
+    end)
+    if success and svc then
+        return svc
+    end
+    success, svc = pcall(function()
+        return game:FindFirstChild(serviceName)
+    end)
+    if success and svc then
+        return svc
+    end
+    return nil
+end
+
+-- ============================================
+-- CORE SERVICES (With fallback values)
+-- ============================================
+local Players = getService("Players")
+local RunService = getService("RunService")
+local TweenService = getService("TweenService")
+local HttpService = getService("HttpService")
+local UserInputService = getService("UserInputService")
+
+if not Players then
+    warn("[Nexus] Players service not found, using game.Players")
+    Players = game:GetService("Players") or game.Players
+end
+
+if not RunService then
+    warn("[Nexus] RunService not found, creating fake")
+    RunService = {
+        Heartbeat = { Connect = function() end },
+        RenderStepped = { Connect = function() end }
+    }
+end
+
+local LocalPlayer = Players and Players.LocalPlayer
+if not LocalPlayer then
+    warn("[Nexus] LocalPlayer not found, waiting...")
+    for i = 1, 10 do
+        task.wait()
+        if Players and Players.LocalPlayer then
+            LocalPlayer = Players.LocalPlayer
+            break
+        end
+    end
+end
+
+-- ============================================
+-- NEXUS CORE TABLE
+-- ============================================
+local Nexus = {
+    _version = "2.0",
+    _windows = {},
+    _notifications = {},
+    _popups = {},
+    _elements = {},
+    _tabs = {},
+    _instancePool = {
+        TextLabel = {},
+        TextButton = {},
+        Frame = {},
+        TextBox = {},
+        ImageLabel = {},
+        ScrollingFrame = {}
+    },
+    _theme = "Dark",
+    _themes = {},
+    _frame = nil,
+    _debug = false,
+    _safeMode = true,
+    _animations = {},
+    _frameListeners = {},
+    _eventConnections = {},
+    _running = true,
+    _initialized = false,
+    _localization = {
+        enabled = false,
+        prefix = "loc:",
+        defaultLang = "en",
+        currentLang = "en",
+        translations = {}
+    },
+    _services = {},
+    _keySystem = {
+        enabled = false,
+        validated = false,
+        providers = {}
+    }
+}
+
+-- ============================================
+-- THEME DEFINITIONS
+-- ============================================
+Nexus._themes = {
+    Dark = {
+        name = "Dark",
+        bg = Color3.fromRGB(18, 18, 22),
+        surface = Color3.fromRGB(30, 30, 38),
+        surface2 = Color3.fromRGB(40, 40, 48),
+        primary = Color3.fromRGB(0, 180, 255),
+        primaryHover = Color3.fromRGB(50, 200, 255),
+        primaryPressed = Color3.fromRGB(0, 140, 200),
+        text = Color3.fromRGB(255, 255, 255),
+        textDim = Color3.fromRGB(180, 180, 190),
+        textDark = Color3.fromRGB(120, 120, 130),
+        border = Color3.fromRGB(50, 50, 60),
+        accent = Color3.fromRGB(255, 70, 120),
+        success = Color3.fromRGB(0, 220, 120),
+        danger = Color3.fromRGB(255, 60, 60),
+        warning = Color3.fromRGB(255, 180, 0)
+    },
+    Light = {
+        name = "Light",
+        bg = Color3.fromRGB(240, 240, 245),
+        surface = Color3.fromRGB(255, 255, 255),
+        surface2 = Color3.fromRGB(245, 245, 250),
+        primary = Color3.fromRGB(0, 120, 215),
+        primaryHover = Color3.fromRGB(0, 150, 255),
+        primaryPressed = Color3.fromRGB(0, 90, 180),
+        text = Color3.fromRGB(20, 20, 25),
+        textDim = Color3.fromRGB(100, 100, 110),
+        textDark = Color3.fromRGB(60, 60, 70),
+        border = Color3.fromRGB(200, 200, 210),
+        accent = Color3.fromRGB(220, 50, 100),
+        success = Color3.fromRGB(0, 180, 100),
+        danger = Color3.fromRGB(220, 50, 50),
+        warning = Color3.fromRGB(200, 150, 0)
+    },
+    Cyberpunk = {
+        name = "Cyberpunk",
+        bg = Color3.fromRGB(10, 10, 20),
+        surface = Color3.fromRGB(20, 15, 35),
+        surface2 = Color3.fromRGB(30, 25, 50),
+        primary = Color3.fromRGB(255, 0, 200),
+        primaryHover = Color3.fromRGB(255, 50, 220),
+        primaryPressed = Color3.fromRGB(200, 0, 150),
+        text = Color3.fromRGB(0, 255, 255),
+        textDim = Color3.fromRGB(100, 200, 200),
+        textDark = Color3.fromRGB(50, 100, 100),
+        border = Color3.fromRGB(255, 0, 200),
+        accent = Color3.fromRGB(255, 200, 0),
+        success = Color3.fromRGB(0, 255, 100),
+        danger = Color3.fromRGB(255, 0, 50),
+        warning = Color3.fromRGB(255, 150, 0)
+    },
+    Matrix = {
+        name = "Matrix",
+        bg = Color3.fromRGB(0, 10, 0),
+        surface = Color3.fromRGB(0, 20, 0),
+        surface2 = Color3.fromRGB(0, 30, 0),
+        primary = Color3.fromRGB(0, 255, 0),
+        primaryHover = Color3.fromRGB(100, 255, 100),
+        primaryPressed = Color3.fromRGB(0, 200, 0),
+        text = Color3.fromRGB(0, 255, 0),
+        textDim = Color3.fromRGB(0, 180, 0),
+        textDark = Color3.fromRGB(0, 100, 0),
+        border = Color3.fromRGB(0, 80, 0),
+        accent = Color3.fromRGB(0, 255, 200),
+        success = Color3.fromRGB(0, 255, 0),
+        danger = Color3.fromRGB(255, 0, 0),
+        warning = Color3.fromRGB(255, 255, 0)
+    }
+}
+
+-- ============================================
+-- GUI CONTAINER INITIALIZATION
+-- ============================================
+local function getPlayerGui()
+    if not LocalPlayer then
+        warn("[Nexus] No LocalPlayer found, creating ScreenGui on CoreGui")
+        return game:GetService("CoreGui")
+    end
+    
+    local success, gui = pcall(function()
+        return LocalPlayer:WaitForChild("PlayerGui")
+    end)
+    
+    if success and gui then
+        return gui
+    end
+    
+    success, gui = pcall(function()
+        return game:GetService("CoreGui")
+    end)
+    
+    if success and gui then
+        return gui
+    end
+    
+    return Instance.new("ScreenGui")
+end
+
+function Nexus:Init(config)
+    if self._initialized then
+        return self
+    end
+    
+    config = config or {}
+    self._debug = config.Debug or false
+    self._safeMode = config.SafeMode or (config.SafeMode == nil and true)
+    self._theme = config.Theme or "Dark"
+    
+    -- Initialize localization if provided
+    if config.Localization then
+        self:SetupLocalization(config.Localization)
+    end
+    
+    local container = getPlayerGui()
+    
+    local success, gui = pcall(function()
+        local sg = Instance.new("ScreenGui")
+        sg.Name = "NexusUI_" .. tostring(math.random(1000, 9999))
+        sg.Parent = container
+        sg.ResetOnSpawn = false
+        sg.IgnoreGuiInset = true
+        return sg
+    end)
+    
+    if success and gui then
+        self._frame = gui
+    else
+        success, gui = pcall(function()
+            local sg = Instance.new("ScreenGui")
+            sg.Name = "NexusUI"
+            sg.Parent = game:GetService("CoreGui")
+            sg.ResetOnSpawn = false
+            return sg
+        end)
+        
+        if success and gui then
+            self._frame = gui
+        else
+            error("[Nexus] Failed to create ScreenGui")
+        end
+    end
+    
+    pcall(function()
+        self._frame.Name = "RobloxGui_" .. tostring(math.random(10000, 99999))
+    end)
+    
+    self:_startHeartbeat()
+    self._initialized = true
+    
+    if self._debug then
+        print("[Nexus] Initialized successfully - Theme:", self._theme)
+        print("[Nexus] Safe Mode:", self._safeMode)
+    end
+    
+    return self
+end
+
+-- ============================================
+-- LOCALIZATION SYSTEM
+-- ============================================
+function Nexus:SetupLocalization(config)
+    self._localization.enabled = config.Enabled or false
+    self._localization.prefix = config.Prefix or "loc:"
+    self._localization.defaultLang = config.DefaultLanguage or "en"
+    self._localization.currentLang = config.DefaultLanguage or "en"
+    self._localization.translations = config.Translations or {}
+    
+    if self._debug then
+        print("[Nexus] Localization setup with", #self._localization.translations, "languages")
+    end
+end
+
+function Nexus:GetLocalizedText(key, lang)
+    if not self._localization.enabled then
+        return key
+    end
+    
+    lang = lang or self._localization.currentLang
+    local translations = self._localization.translations[lang]
+    
+    if translations and translations[key] then
+        return translations[key]
+    end
+    
+    -- Fallback to default language
+    if lang ~= self._localization.defaultLang then
+        local defaultTranslations = self._localization.translations[self._localization.defaultLang]
+        if defaultTranslations and defaultTranslations[key] then
+            return defaultTranslations[key]
+        end
+    end
+    
+    if self._debug then
+        warn("[Nexus] Localization key not found:", key)
+    end
+    
+    return key
+end
+
+function Nexus:SetLanguage(lang)
+    if self._localization.translations[lang] then
+        self._localization.currentLang = lang
+        return true
+    end
+    return false
+end
+
+function Nexus:GetLocalized(key)
+    if string.sub(key, 1, 4) == self._localization.prefix then
+        local realKey = string.sub(key, 5)
+        return self:GetLocalizedText(realKey)
+    end
+    return key
+end
+
+-- ============================================
+-- KEY SYSTEM / SERVICES
+-- ============================================
+function Nexus:RegisterService(serviceName, serviceData)
+    self._services[serviceName] = serviceData
+    if self._debug then
+        print("[Nexus] Service registered:", serviceName)
+    end
+end
+
+function Nexus:ValidateKey(key, serviceName)
+    local service = self._services[serviceName]
+    if not service then
+        return false, "Service not found"
+    end
+    
+    if service.Validate then
+        return service.Validate(key)
+    end
+    
+    return false, "No validation function provided"
+end
+
+function Nexus:SetupKeySystem(config)
+    self._keySystem.enabled = true
+    self._keySystem.providers = config.Providers or {}
+    
+    if self._debug then
+        print("[Nexus] Key system setup with", #self._keySystem.providers, "providers")
+    end
+end
+
+function Nexus:CheckKey(key, providerName)
+    local provider = self._keySystem.providers[providerName]
+    if not provider then
+        return false, "Provider not found"
+    end
+    
+    local isValid, message = provider.Validate(key)
+    if isValid then
+        self._keySystem.validated = true
+    end
+    
+    return isValid, message
+end
+
+-- ============================================
+-- HEARTBEAT LOOP
+-- ============================================
+function Nexus:_startHeartbeat()
+    local heartbeat = RunService.Heartbeat
+    
+    local function onHeartbeat()
+        for i = #self._windows, 1, -1 do
+            local window = self._windows[i]
+            if not window or not window.Instance or not window.Instance.Parent then
+                table.remove(self._windows, i)
+            end
+        end
+        
+        for i = #self._notifications, 1, -1 do
+            local notif = self._notifications[i]
+            if not notif or not notif.Parent then
+                table.remove(self._notifications, i)
+            end
+        end
+        
+        for i = #self._popups, 1, -1 do
+            local popup = self._popups[i]
+            if not popup or not popup.Parent then
+                table.remove(self._popups, i)
+            end
+        end
+    end
+    
+    self._eventConnections.Heartbeat = heartbeat:Connect(onHeartbeat)
+end
+
+-- ============================================
+-- THEME FUNCTIONS
+-- ============================================
+function Nexus:GetTheme()
+    return self._themes[self._theme]
+end
+
+function Nexus:SetTheme(themeName)
+    if self._themes[themeName] then
+        self._theme = themeName
+        
+        for _, window in ipairs(self._windows) do
+            if window and window.UpdateTheme then
+                window:UpdateTheme()
+            end
+        end
+        
+        if self._debug then
+            print("[Nexus] Theme changed to:", themeName)
+        end
+        
+        return true
+    end
+    
+    if self._debug then
+        warn("[Nexus] Theme not found:", themeName)
+    end
+    
+    return false
+end
+
+function Nexus:GetColor(colorPath)
+    local theme = self:GetTheme()
+    if not theme then return Color3.new(1, 0, 1) end
+    
+    local parts = {}
+    for part in string.gmatch(colorPath, "[^.]+") do
+        table.insert(parts, part)
+    end
+    
+    local current = theme
+    for _, part in ipairs(parts) do
+        if current[part] then
+            current = current[part]
+        else
+            if self._debug then
+                warn("[Nexus] Color path not found:", colorPath)
+            end
+            return Color3.new(1, 0, 1)
+        end
+    end
+    
+    return current
+end
+
+-- ============================================
+-- UTILITY FUNCTIONS
+-- ============================================
+function Nexus:CreateCorner(instance, radius)
+    if not radius then radius = 4 end
+    
+    local success, corner = pcall(function()
+        local uc = Instance.new("UICorner")
+        uc.CornerRadius = UDim.new(0, radius)
+        uc.Parent = instance
+        return uc
+    end)
+    
+    if success then
+        return corner
+    end
+    
+    return nil
+end
+
+function Nexus:CreateShadow(instance, size, transparency)
+    if not size then size = 16 end
+    if not transparency then transparency = 0.5 end
+    
+    local success, shadow = pcall(function()
+        local us = Instance.new("UIShadow")
+        us.Color = Color3.fromRGB(0, 0, 0)
+        us.Transparency = transparency
+        us.Size = size
+        us.Parent = instance
+        return us
+    end)
+    
+    if success then
+        return shadow
+    end
+    
+    return nil
+end
+
+function Nexus:GetInstanceFromPool(className)
+    local pool = self._instancePool[className]
+    if not pool then return nil end
+    
+    for i = #pool, 1, -1 do
+        local instance = pool[i]
+        if instance and instance.Parent == nil then
+            table.remove(pool, i)
+            instance.Visible = true
+            return instance
+        end
+    end
+    
+    return nil
+end
+
+function Nexus:ReturnToPool(instance)
+    if not instance then return end
+    
+    local className = instance.ClassName
+    local pool = self._instancePool[className]
+    if not pool then return end
+    
+    instance.Visible = false
+    instance.Parent = nil
+    table.insert(pool, instance)
+end
+
+function Nexus:CreateGradientText(text, startColor, endColor)
+    local result = ""
+    local len = #text
+    if len == 0 then return text end
+    
+    for i = 1, len do
+        local t = (i - 1) / (len - 1)
+        local r = math.floor((startColor.R + (endColor.R - startColor.R) * t) * 255)
+        local g = math.floor((startColor.G + (endColor.G - startColor.G) * t) * 255)
+        local b = math.floor((startColor.B + (endColor.B - startColor.B) * t) * 255)
+        result = result .. string.format('<font color="rgb(%d,%d,%d)">%s</font>', r, g, b, text:sub(i, i))
+    end
+    
+    return result
+end
+
+-- ============================================
+-- ANIMATION ENGINE
+-- ============================================
+function Nexus:Animate(instance, targetProps, duration, easingStyle, callback)
+    if not instance or not targetProps then return end
+    
+    duration = duration or 0.3
+    easingStyle = easingStyle or Enum.EasingStyle.Quad
+    
+    if TweenService then
+        local success, tween = pcall(function()
+            local tweenInfo = TweenInfo.new(duration, easingStyle, Enum.EasingDirection.Out)
+            local t = TweenService:Create(instance, tweenInfo, targetProps)
+            t:Play()
+            
+            if callback then
+                t.Completed:Connect(function()
+                    callback()
+                end)
+            end
+            
+            return t
+        end)
+        
+        if success and tween then
+            return tween
+        end
+    end
+    
+    if self._debug then
+        warn("[Nexus] TweenService failed, using manual animation")
+    end
+    
+    local startTime = tick()
+    local startProps = {}
+    
+    for prop, targetVal in pairs(targetProps) do
+        local success, currentVal = pcall(function()
+            return instance[prop]
+        end)
+        
+        if success and currentVal ~= nil then
+            startProps[prop] = currentVal
+        else
+            if self._debug then
+                warn("[Nexus] Cannot animate property:", prop)
+            end
+            return
+        end
+    end
+    
+    local connection
+    connection = RunService.Heartbeat:Connect(function()
+        if not self._running then
+            if connection then connection:Disconnect() end
+            return
+        end
+        
+        local elapsed = (tick() - startTime) / duration
+        
+        if elapsed >= 1 then
+            elapsed = 1
+            if connection then connection:Disconnect() end
+            
+            for prop, targetVal in pairs(targetProps) do
+                pcall(function()
+                    instance[prop] = targetVal
+                end)
+            end
+            
+            if callback then
+                callback()
+            end
+            return
+        end
+        
+        local eased = elapsed * elapsed * (3 - 2 * elapsed)
+        
+        for prop, startVal in pairs(startProps) do
+            local targetVal = targetProps[prop]
+            if type(startVal) == "number" and type(targetVal) == "number" then
+                pcall(function()
+                    instance[prop] = startVal + (targetVal - startVal) * eased
+                end)
+            end
+        end
+    end)
+    
+    return connection
+end
+
+-- ============================================
+-- COMPONENT CREATION HELPERS
+-- ============================================
+local function createBaseElement(className, parent, config)
+    config = config or {}
+    local instance = Instance.new(className)
+    instance.Parent = parent or nil
+    
+    if config.Size then instance.Size = config.Size end
+    if config.Position then instance.Position = config.Position end
+    if config.BackgroundColor3 then instance.BackgroundColor3 = config.BackgroundColor3 end
+    if config.BackgroundTransparency ~= nil then instance.BackgroundTransparency = config.BackgroundTransparency end
+    if config.BorderSizePixel ~= nil then instance.BorderSizePixel = config.BorderSizePixel end
+    if config.Visible ~= nil then instance.Visible = config.Visible end
+    if config.ZIndex then instance.ZIndex = config.ZIndex end
+    if config.AnchorPoint then instance.AnchorPoint = config.AnchorPoint end
+    if config.ClipsDescendants ~= nil then instance.ClipsDescendants = config.ClipsDescendants end
+    
+    if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
+        if config.Text then instance.Text = config.Text end
+        if config.TextColor3 then instance.TextColor3 = config.TextColor3 end
+        if config.TextSize then instance.TextSize = config.TextSize end
+        if config.Font then instance.Font = config.Font end
+        if config.TextXAlignment then instance.TextXAlignment = config.TextXAlignment end
+        if config.TextYAlignment then instance.TextYAlignment = config.TextYAlignment end
+        if config.TextScaled ~= nil then instance.TextScaled = config.TextScaled end
+        if config.PlaceholderText then instance.PlaceholderText = config.PlaceholderText end
+        if config.PlaceholderColor3 then instance.PlaceholderColor3 = config.PlaceholderColor3 end
+        if config.ClearTextOnFocus ~= nil then instance.ClearTextOnFocus = config.ClearTextOnFocus end
+        if config.AutoButtonColor ~= nil then instance.AutoButtonColor = config.AutoButtonColor end
+    end
+    
+    if instance:IsA("ImageLabel") or instance:IsA("ImageButton") then
+        if config.Image then instance.Image = config.Image end
+        if config.ImageColor3 then instance.ImageColor3 = config.ImageColor3 end
+        if config.ImageTransparency then instance.ImageTransparency = config.ImageTransparency end
+        if config.ScaleType then instance.ScaleType = config.ScaleType end
+    end
+    
+    if instance:IsA("ScrollingFrame") then
+        if config.CanvasSize then instance.CanvasSize = config.CanvasSize end
+        if config.ScrollBarThickness then instance.ScrollBarThickness = config.ScrollBarThickness end
+        if config.VerticalScrollBarPosition then instance.VerticalScrollBarPosition = config.VerticalScrollBarPosition end
+    end
+    
+    return instance
+end
+
+-- ============================================
+-- WINDOW CREATION
+-- ============================================
+function Nexus:CreateWindow(config)
+    config = config or {}
+    local theme = self:GetTheme()
+    
+    if not self._frame then
+        self:Init()
+    end
+    
+    local window = createBaseElement("Frame", self._frame, {
+        Size = config.Size or UDim2.fromOffset(500, 400),
+        Position = config.Position or UDim2.fromScale(0.5, 0.5),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = theme.surface,
+        BackgroundTransparency = config.Transparency or 0,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Visible = true,
+        ZIndex = 100
+    })
+    
+    self:CreateCorner(window, config.CornerRadius or 8)
+    
+    if config.Shadow ~= false then
+        self:CreateShadow(window)
+    end
+    
+    local titleBar = createBaseElement("Frame", window, {
+        Size = UDim2.new(1, 0, 0, 36),
+        BackgroundColor3 = theme.bg,
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0,
+        ZIndex = 101
+    })
+    
+    local titleText = self:GetLocalized(config.Title or "Nexus UI")
+    
+    local titleLabel = createBaseElement("TextLabel", titleBar, {
+        Size = UDim2.new(1, -60, 1, 0),
+        Position = UDim2.new(0, 12, 0, 0),
+        BackgroundTransparency = 1,
+        Text = titleText,
+        TextColor3 = theme.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        Font = Enum.Font.GothamBold,
+        TextSize = 16,
+        ZIndex = 102
+    })
+    
+    local closeBtn = createBaseElement("TextButton", titleBar, {
+        Size = UDim2.new(0, 30, 0, 30),
+        Position = UDim2.new(1, -36, 0, 3),
+        BackgroundTransparency = 1,
+        Text = "✕",
+        TextColor3 = theme.textDim,
+        TextSize = 18,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ZIndex = 102
+    })
+    
+    closeBtn.MouseButton1Click:Connect(function()
+        if config.OnClose then
+            config.OnClose()
+        end
+        self:DestroyWindow(window)
+    end)
+    
+    local content = createBaseElement("Frame", window, {
+        Size = UDim2.new(1, -16, 1, -52),
+        Position = UDim2.new(0, 8, 0, 42),
+        BackgroundTransparency = 1,
+        ClipsDescendants = true,
+        ZIndex = 100
+    })
+    
+    if config.Draggable ~= false then
+        pcall(function()
+            local dragging = false
+            local dragStart
+            local startPos
+            
+            titleBar.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragging = true
+                    dragStart = input.Position
+                    startPos = window.Position
+                end
+            end)
+            
+            titleBar.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragging = false
+                end
+            end)
+            
+            titleBar.InputChanged:Connect(function(input)
+                if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                    local delta = input.Position - dragStart
+                    window.Position = UDim2.new(
+                        startPos.X.Scale,
+                        startPos.X.Offset + delta.X,
+                        startPos.Y.Scale,
+                        startPos.Y.Offset + delta.Y
+                    )
+                end
+            end)
+        end)
+    end
+    
+    local windowData = {
+        Instance = window,
+        Content = content,
+        TitleBar = titleBar,
+        Title = titleLabel,
+        Close = closeBtn,
+        Elements = {},
+        Tabs = {},
+        Config = config,
+        Parent = self,
+        _currentTab = nil,
+        
+        Add = function(self, element)
+            if not element then return end
+            element.Parent = content
+            table.insert(self.Elements, element)
+            return element
+        end,
+        
+        AddTab = function(self, tabConfig)
+            local tabData = self.Parent:CreateTab(self, tabConfig)
+            table.insert(self.Tabs, tabData)
+            
+            if not self._currentTab then
+                self:SelectTab(#self.Tabs)
+            end
+            
+            return tabData
+        end,
+        
+        SelectTab = function(self, index)
+            if type(index) == "string" then
+                for i, tab in ipairs(self.Tabs) do
+                    if tab.Name == index then
+                        index = i
+                        break
+                    end
+                end
+            end
+            
+            if type(index) ~= "number" or index < 1 or index > #self.Tabs then
+                return
+            end
+            
+            self._currentTab = index
+            
+            for i, tab in ipairs(self.Tabs) do
+                if tab.Instance then
+                    tab.Instance.Visible = (i == index)
+                    tab.Instance.ZIndex = (i == index) and 100 or 1
+                end
+                if tab.Button then
+                    tab.Button.BackgroundColor3 = (i == index) and theme.primary or theme.bg
+                    tab.Button.BackgroundTransparency = (i == index) and 0 or 0.5
+                end
+            end
+            
+            if self.Tabs[index] and self.Tabs[index].OnSelect then
+                self.Tabs[index]:OnSelect()
+            end
+        end,
+        
+        UpdateTheme = function(self)
+            local newTheme = self.Parent:GetTheme()
+            if not newTheme then return end
+            
+            window.BackgroundColor3 = newTheme.surface
+            titleBar.BackgroundColor3 = newTheme.bg
+            titleLabel.TextColor3 = newTheme.text
+            closeBtn.TextColor3 = newTheme.textDim
+            
+            for _, element in ipairs(self.Elements) do
+                if element and element.UpdateTheme then
+                    element:UpdateTheme()
+                end
+            end
+            
+            for _, tab in ipairs(self.Tabs) do
+                if tab and tab.UpdateTheme then
+                    tab:UpdateTheme()
+                end
+            end
+        end,
+        
+        Destroy = function(self)
+            self.Parent:DestroyWindow(window)
+        end
+    }
+    
+    -- Create tabs if provided
+    if config.Tabs then
+        for _, tabConfig in ipairs(config.Tabs) do
+            windowData:AddTab(tabConfig)
+        end
+        if #windowData.Tabs > 0 then
+            windowData:SelectTab(1)
+        end
+    end
+    
+    table.insert(self._windows, windowData)
+    
+    if self._debug then
+        print("[Nexus] Window created:", config.Title)
+    end
+    
+    return windowData
+end
+
+function Nexus:DestroyWindow(windowInstance)
+    if not windowInstance then return end
+    
+    if windowInstance.Instance then
+        windowInstance = windowInstance.Instance
+    end
+    
+    if windowInstance and windowInstance.Parent then
+        windowInstance:Destroy()
+    end
+    
+    for i = #self._windows, 1, -1 do
+        if self._windows[i].Instance == windowInstance or self._windows[i].Instance == nil then
+            table.remove(self._windows, i)
+        end
+    end
+end
+
+-- ============================================
+-- TAB CREATION
+-- ============================================
+function Nexus:CreateTab(window, config)
+    local theme = self:GetTheme()
+    local tabName = config.Name or "Tab" .. tostring(#window.Tabs + 1)
+    
+    -- Tab button in the title bar area
+    local tabButton = createBaseElement("TextButton", window.TitleBar, {
+        Size = UDim2.new(0, 80, 0, 28),
+        Position = UDim2.new(0, 80 + (#window.Tabs * 86), 0, 4),
+        BackgroundColor3 = theme.bg,
+        BackgroundTransparency = 0.5,
+        Text = self:GetLocalized(tabName),
+        TextColor3 = theme.textDim,
+        TextSize = 12,
+        Font = Enum.Font.Gotham,
+        BorderSizePixel = 0,
+        ZIndex = 102,
+        AutoButtonColor = false
+    })
+    
+    self:CreateCorner(tabButton, 4)
+    
+    -- Tab content container (hidden by default)
+    local tabContent = createBaseElement("Frame", window.Content, {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Visible = false,
+        ZIndex = 1,
+        ClipsDescendants = true
+    })
+    
+    -- Create a scrolling frame if content is expected to be large
+    local scrollFrame = createBaseElement("ScrollingFrame", tabContent, {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        ScrollBarThickness = 4,
+        VerticalScrollBarPosition = Enum.VerticalScrollBarPosition.Right,
+        BorderSizePixel = 0,
+        ZIndex = 100,
+        ClipsDescendants = true
+    })
+    
+    -- Content layout for the tab
+    local contentLayout = createBaseElement("UIListLayout", scrollFrame, {
+        FillDirection = Enum.FillDirection.Vertical,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        VerticalAlignment = Enum.VerticalAlignment.Top,
+        Padding = UDim.new(0, 6),
+        SortOrder = Enum.SortOrder.LayoutOrder
+    })
+    
+    -- Build tab content if provided
+    local tabData = {
+        Name = tabName,
+        Instance = tabContent,
+        Button = tabButton,
+        ScrollFrame = scrollFrame,
+        Layout = contentLayout,
+        Window = window,
+        Parent = self,
+        Elements = {},
+        
+        Add = function(self, element)
+            if not element then return end
+            element.Parent = scrollFrame
+            table.insert(self.Elements, element)
+            
+            -- Update canvas size
+            local function updateCanvas()
+                local totalHeight = 0
+                for _, child in ipairs(scrollFrame:GetChildren()) do
+                    if child:IsA("GuiObject") and child.Visible then
+                        totalHeight = totalHeight + child.Size.Y.Offset + 6
+                    end
+                end
+                scrollFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight + 20)
+            end
+            
+            -- Update canvas when elements change
+            if element.Instance and element.Instance:IsA("GuiObject") then
+                element.Instance:GetPropertyChangedSignal("Size"):Connect(updateCanvas)
+                element.Instance:GetPropertyChangedSignal("Visible"):Connect(updateCanvas)
+            end
+            
+            task.wait(0.05)
+            updateCanvas()
+            
+            return element
+        end,
+        
+        OnSelect = function(self)
+            if config.OnSelect then
+                config.OnSelect()
+            end
+        end,
+        
+        UpdateTheme = function(self)
+            local newTheme = self.Parent:GetTheme()
+            if not newTheme then return end
+            
+            tabButton.TextColor3 = (self.Window._currentTab == self.Window.Tabs[self]) and newTheme.text or newTheme.textDim
+            tabButton.BackgroundColor3 = (self.Window._currentTab == self.Window.Tabs[self]) and newTheme.primary or newTheme.bg
+            tabButton.BackgroundTransparency = (self.Window._currentTab == self.Window.Tabs[self]) and 0 or 0.5
+            
+            for _, element in ipairs(self.Elements) do
+                if element and element.UpdateTheme then
+                    element:UpdateTheme()
+                end
+            end
+        end,
+        
+        Select = function(self)
+            self.Window:SelectTab(self)
+        end
+    }
+    
+    tabButton.MouseButton1Click:Connect(function()
+        tabData:Select()
+    end)
+    
+    -- Execute the content builder if provided
+    if config.Content then
+        local success, err = pcall(function()
+            config.Content(tabData)
+        end)
+        if not success and self._debug then
+            warn("[Nexus] Tab content error:", err)
+        end
+    end
+    
+    return tabData
+end
+
+-- ============================================
+-- BUTTON CREATION
+-- ============================================
+function Nexus:CreateButton(config)
+    config = config or {}
+    local theme = self:GetTheme()
+    
+    local btnText = self:GetLocalized(config.Text or "Button")
+    
+    local btn = createBaseElement("TextButton", nil, {
+        Size = config.Size or UDim2.fromOffset(100, 32),
+        Position = config.Position or UDim2.new(0, 0, 0, 0),
+        BackgroundColor3 = config.Color or theme.primary,
+        BackgroundTransparency = 0,
+        Text = btnText,
+        TextColor3 = theme.text,
+        TextSize = config.TextSize or 14,
+        Font = config.Font or Enum.Font.GothamSemibold,
+        BorderSizePixel = 0,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        AutoButtonColor = false,
+        ZIndex = config.ZIndex or 100
+    })
+    
+    self:CreateCorner(btn, config.Radius or 4)
+    
+    local isHovered = false
+    local isPressed = false
+    local originalColor = config.Color or theme.primary
+    local hoverColor = config.HoverColor or theme.primaryHover
+    local pressedColor = config.PressedColor or theme.primaryPressed
+    
+    btn.MouseEnter:Connect(function()
+        isHovered = true
+        if not isPressed then
+            btn.BackgroundColor3 = hoverColor
+        end
+    end)
+    
+    btn.MouseLeave:Connect(function()
+        isHovered = false
+        if not isPressed then
+            btn.BackgroundColor3 = originalColor
+        end
+    end)
+    
+    if config.UsePressEvents ~= false then
+        btn.MouseButton1Down:Connect(function()
+            isPressed = true
+            btn.BackgroundColor3 = pressedColor
+        end)
+        
+        btn.MouseButton1Up:Connect(function()
+            isPressed = false
+            if isHovered then
+                btn.BackgroundColor3 = hoverColor
+            else
+                btn.BackgroundColor3 = originalColor
+            end
+        end)
+    end
+    
+    if config.Callback then
+        btn.MouseButton1Click:Connect(function(...)
+            local success, result = pcall(config.Callback, ...)
+            if not success and self._debug then
+                warn("[Nexus] Button callback error:", result)
+            end
+        end)
+    end
+    
+    local buttonData = {
+        Instance = btn,
+        UpdateTheme = function(self)
+            local newTheme = self.Parent and self.Parent:GetTheme() or theme
+            btn.TextColor3 = newTheme.text
+            if not isHovered and not isPressed then
+                btn.BackgroundColor3 = config.Color or newTheme.primary
+            end
+        end,
+        SetText = function(self, text)
+            btn.Text = self.Parent and self.Parent.Parent:GetLocalized(text) or text
+        end,
+        SetEnabled = function(self, enabled)
+            btn.Active = enabled
+            btn.TextTransparency = enabled and 0 or 0.5
+            btn.BackgroundTransparency = enabled and 0 or 0.5
+        end
+    }
+    
+    buttonData.Parent = self
+    
+    return buttonData
+end
+
+-- ============================================
+-- LABEL CREATION
+-- ============================================
+function Nexus:CreateLabel(config)
+    config = config or {}
+    local theme = self:GetTheme()
+    
+    local labelText = self:GetLocalized(config.Text or "Label")
+    
+    local label = createBaseElement("TextLabel", nil, {
+        Size = config.Size or UDim2.new(1, -16, 0, 30),
+        Position = config.Position or UDim2.new(0, 8, 0, 0),
+        BackgroundTransparency = 1,
+        Text = labelText,
+        TextColor3 = config.Color or theme.text,
+        TextSize = config.TextSize or 14,
+        Font = config.Font or Enum.Font.Gotham,
+        TextXAlignment = config.TextXAlignment or Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ZIndex = config.ZIndex or 100
+    })
+    
+    local labelData = {
+        Instance = label,
+        UpdateTheme = function(self)
+            local newTheme = self.Parent and self.Parent:GetTheme() or theme
+            label.TextColor3 = config.Color or newTheme.text
+        end,
+        SetText = function(self, text)
+            label.Text = self.Parent and self.Parent.Parent:GetLocalized(text) or text
+        end
+    }
+    
+    labelData.Parent = self
+    
+    return labelData
+end
+
+-- ============================================
+-- INPUT / TEXTBOX CREATION
+-- ============================================
+function Nexus:CreateInput(config)
+    config = config or {}
+    local theme = self:GetTheme()
+    
+    local placeholderText = self:GetLocalized(config.Placeholder or "Type here...")
+    
+    local input = createBaseElement("TextBox", nil, {
+        Size = config.Size or UDim2.fromOffset(200, 28),
+        Position = config.Position or UDim2.new(0, 0, 0, 0),
+        BackgroundColor3 = theme.bg,
+        BackgroundTransparency = 0.5,
+        BorderSizePixel = 0,
+        Text = config.Text or "",
+        TextColor3 = theme.text,
+        TextSize = config.TextSize or 14,
+        Font = config.Font or Enum.Font.Gotham,
+        PlaceholderText = placeholderText,
+        PlaceholderColor3 = theme.textDim,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ClearTextOnFocus = config.ClearOnFocus or false,
+        ZIndex = config.ZIndex or 100
+    })
+    
+    self:CreateCorner(input, config.Radius or 4)
+    
+    local isFocused = false
+    
+    input.Focused:Connect(function()
+        isFocused = true
+        if config.OnFocus then
+            config.OnFocus(input.Text)
+        end
+    end)
+    
+    input.FocusLost:Connect(function(enterPressed)
+        isFocused = false
+        if config.OnChange then
+            config.OnChange(input.Text)
+        end
+        if config.OnFocusLost then
+            config.OnFocusLost(input.Text, enterPressed)
+        end
+    end)
+    
+    if config.OnInput then
+        input:GetPropertyChangedSignal("Text"):Connect(function()
+            config.OnInput(input.Text)
+        end)
+    end
+    
+    local inputData = {
+        Instance = input,
+        UpdateTheme = function(self)
+            local newTheme = self.Parent and self.Parent:GetTheme() or theme
+            input.BackgroundColor3 = newTheme.bg
+            input.TextColor3 = newTheme.text
+            input.PlaceholderColor3 = newTheme.textDim
+        end,
+        SetText = function(self, text)
+            input.Text = text
+        end,
+        GetText = function(self)
+            return input.Text
+        end,
+        Clear = function(self)
+            input.Text = ""
+        end,
+        Focus = function(self)
+            input:CaptureFocus()
+        end,
+        IsFocused = function(self)
+            return isFocused
+        end
+    }
+    
+    inputData.Parent = self
+    
+    return inputData
+end
+
+-- ============================================
+-- CHECKBOX CREATION
+-- ============================================
+function Nexus:CreateCheckbox(config)
+    config = config or {}
+    local theme = self:GetTheme()
+    
+    local state = config.Default or false
+    
+    local container = createBaseElement("Frame", nil, {
+        Size = config.Size or UDim2.fromOffset(150, 28),
+        Position = config.Position or UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1,
+        ZIndex = config.ZIndex or 100
+    })
+    
+    local box = createBaseElement("Frame", container, {
+        Size = UDim2.new(0, 20, 0, 20),
+        Position = UDim2.new(0, 0, 0, 4),
+        BackgroundColor3 = state and theme.primary or theme.bg,
+        BackgroundTransparency = state and 0 or 0.5,
+        BorderSizePixel = 0,
+        ZIndex = 101
+    })
+    
+    self:CreateCorner(box, 4)
+    
+    local checkmark = createBaseElement("TextLabel", box, {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = state and "✓" or "",
+        TextColor3 = theme.text,
+        TextSize = 14,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ZIndex = 102
+    })
+    
+    local labelText = self:GetLocalized(config.Text or "Checkbox")
+    
+    local label = createBaseElement("TextLabel", container, {
+        Size = UDim2.new(1, -28, 1, 0),
+        Position = UDim2.new(0, 26, 0, 0),
+        BackgroundTransparency = 1,
+        Text = labelText,
+        TextColor3 = theme.text,
+        TextSize = config.TextSize or 14,
+        Font = config.Font or Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ZIndex = 101
+    })
+    
+    local clickArea = createBaseElement("TextButton", container, {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = "",
+        ZIndex = 103,
+        AutoButtonColor = false
+    })
+    
+    local function toggle()
+        state = not state
+        box.BackgroundColor3 = state and theme.primary or theme.bg
+        box.BackgroundTransparency = state and 0 or 0.5
+        checkmark.Text = state and "✓" or ""
+        
+        if config.OnToggle then
+            config.OnToggle(state)
+        end
+    end
+    
+    clickArea.MouseButton1Click:Connect(toggle)
+    box.MouseButton1Click:Connect(toggle)
+    label.MouseButton1Click:Connect(toggle)
+    
+    local checkboxData = {
+        Instance = container,
+        UpdateTheme = function(self)
+            local newTheme = self.Parent and self.Parent:GetTheme() or theme
+            box.BackgroundColor3 = state and newTheme.primary or newTheme.bg
+            checkmark.TextColor3 = newTheme.text
+            label.TextColor3 = newTheme.text
+        end,
+        Toggle = function(self)
+            toggle()
+        end,
+        SetState = function(self, newState)
+            state = newState
+            box.BackgroundColor3 = state and theme.primary or theme.bg
+            box.BackgroundTransparency = state and 0 or 0.5
+            checkmark.Text = state and "✓" or ""
+            if config.OnToggle then
+                config.OnToggle(state)
+            end
+        end,
+        GetState = function(self)
+            return state
+        end
+    }
+    
+    checkboxData.Parent = self
+    
+    return checkboxData
+end
+
+-- ============================================
+-- SLIDER CREATION
+-- ============================================
+function Nexus:CreateSlider(config)
+    config = config or {}
+    local theme = self:GetTheme()
+    local min = config.Min or 0
+    local max = config.Max or 100
+    local value = config.Default or 50
+    
+    local container = createBaseElement("Frame", nil, {
+        Size = config.Size or UDim2.fromOffset(200, 30),
+        Position = config.Position or UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1,
+        ZIndex = config.ZIndex or 100
+    })
+    
+    local track = createBaseElement("Frame", container, {
+        Size = UDim2.new(1, 0, 0, 6),
+        Position = UDim2.new(0, 0, 0, 12),
+        BackgroundColor3 = theme.bg,
+        BackgroundTransparency = 0.5,
+        BorderSizePixel = 0,
+        ZIndex = 101
+    })
+    
+    self:CreateCorner(track, 3)
+    
+    local fill = createBaseElement("Frame", track, {
+        Size = UDim2.new((value - min) / (max - min), 0, 1, 0),
+        BackgroundColor3 = theme.primary,
+        BorderSizePixel = 0,
+        ZIndex = 102
+    })
+    
+    self:CreateCorner(fill, 3)
+    
+    local handle = createBaseElement("Frame", container, {
+        Size = UDim2.new(0, 16, 0, 16),
+        Position = UDim2.new((value - min) / (max - min), -8, 0, 1),
+        BackgroundColor3 = theme.primary,
+        BorderSizePixel = 0,
+        ZIndex = 103
+    })
+    
+    self:CreateCorner(handle, 8)
+    
+    local valueLabel = createBaseElement("TextLabel", container, {
+        Size = UDim2.new(0, 40, 0, 20),
+        Position = UDim2.new(1, -45, 0, 0),
+        BackgroundTransparency = 1,
+        Text = tostring(value),
+        TextColor3 = theme.text,
+        TextSize = 12,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ZIndex = 100
+    })
+    
+    local dragging = false
+    
+    local function updateSlider(inputPos)
+        local trackSize = track.AbsoluteSize.X
+        if trackSize <= 0 then return end
+        
+        local relativeX = math.clamp(inputPos.X - track.AbsolutePosition.X, 0, trackSize)
+        local percentage = relativeX / trackSize
+        value = math.round(min + (max - min) * percentage)
+        
+        fill.Size = UDim2.new(percentage, 0, 1, 0)
+        handle.Position = UDim2.new(percentage, -8, 0, 1)
+        valueLabel.Text = tostring(value)
+        
+        if config.OnChange then
+            config.OnChange(value)
+        end
+    end
+    
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+    
+    handle.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    handle.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            updateSlider(input.Position)
+        end
+    end)
+    
+    track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            updateSlider(input.Position)
+        end
+    end)
+    
+    local sliderData = {
+        Instance = container,
+        UpdateTheme = function(self)
+            local newTheme = self.Parent and self.Parent:GetTheme() or theme
+            track.BackgroundColor3 = newTheme.bg
+            fill.BackgroundColor3 = newTheme.primary
+            handle.BackgroundColor3 = newTheme.primary
+            valueLabel.TextColor3 = newTheme.text
+        end,
+        GetValue = function(self)
+            return value
+        end,
+        SetValue = function(self, newValue)
+            value = math.clamp(newValue, min, max)
+            local percentage = (value - min) / (max - min)
+            fill.Size = UDim2.new(percentage, 0, 1, 0)
+            handle.Position = UDim2.new(percentage, -8, 0, 1)
+            valueLabel.Text = tostring(value)
+            if config.OnChange then
+                config.OnChange(value)
+            end
+        end,
+        SetMinMax = function(self, newMin, newMax)
+            min = newMin or min
+            max = newMax or max
+            self:SetValue(math.clamp(value, min, max))
+        end
+    }
+    
+    sliderData.Parent = self
+    
+    return sliderData
+end
+
+-- ============================================
+-- DROPDOWN CREATION
+-- ============================================
+function Nexus:CreateDropdown(config)
+    config = config or {}
+    local theme = self:GetTheme()
+    local options = config.Options or {}
+    local selected = config.Default or options[1] or ""
+    
+    local container = createBaseElement("Frame", nil, {
+        Size = config.Size or UDim2.fromOffset(150, 28),
+        Position = config.Position or UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1,
+        ClipsDescendants = true,
+        ZIndex = config.ZIndex or 100
+    })
+    
+    local mainBtn = createBaseElement("TextButton", container, {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundColor3 = theme.bg,
+        BackgroundTransparency = 0.5,
+        BorderSizePixel = 0,
+        Text = self:GetLocalized(selected),
+        TextColor3 = theme.text,
+        TextSize = 14,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ZIndex = 101,
+        AutoButtonColor = false
+    })
+    
+    self:CreateCorner(mainBtn, 4)
+    
+    local arrow = createBaseElement("TextLabel", mainBtn, {
+        Size = UDim2.new(0, 30, 1, 0),
+        Position = UDim2.new(1, -30, 0, 0),
+        BackgroundTransparency = 1,
+        Text = "▼",
+        TextColor3 = theme.textDim,
+        TextSize = 12,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ZIndex = 102
+    })
+    
+    local list = createBaseElement("Frame", container, {
+        Size = UDim2.new(1, 0, 0, 0),
+        Position = UDim2.new(0, 0, 1, 2),
+        BackgroundColor3 = theme.surface,
+        BackgroundTransparency = 0.95,
+        BorderSizePixel = 1,
+        BorderColor3 = theme.textDim,
+        ClipsDescendants = true,
+        Visible = false,
+        ZIndex = 200
+    })
+    
+    self:CreateCorner(list, 4)
+    
+    local listLayout = createBaseElement("UIListLayout", list, {
+        FillDirection = Enum.FillDirection.Vertical,
+        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        VerticalAlignment = Enum.VerticalAlignment.Top,
+        Padding = UDim.new(0, 2),
+        SortOrder = Enum.SortOrder.LayoutOrder
+    })
+    
+    local isOpen = false
+    local optionButtons = {}
+    
+    local function buildOptions()
+        for _, btn in ipairs(optionButtons) do
+            btn:Destroy()
+        end
+        optionButtons = {}
+        
+        for i, option in ipairs(options) do
+            local optBtn = createBaseElement("TextButton", list, {
+                Size = UDim2.new(1, -8, 0, 28),
+                Position = UDim2.new(0, 4, 0, 0),
+                BackgroundTransparency = 0,
+                BackgroundColor3 = (i % 2 == 0) and theme.surface or theme.surface2 or theme.bg,
+                BorderSizePixel = 0,
+                Text = self:GetLocalized(option),
+                TextColor3 = theme.text,
+                TextSize = 14,
+                Font = Enum.Font.Gotham,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextYAlignment = Enum.TextYAlignment.Center,
+                ZIndex = 201,
+                AutoButtonColor = false,
+                LayoutOrder = i
+            })
+            
+            self:CreateCorner(optBtn, 2)
+            
+            optBtn.MouseEnter:Connect(function()
+                optBtn.BackgroundColor3 = theme.primary
+                optBtn.BackgroundTransparency = 0.3
+            end)
+            
+            optBtn.MouseLeave:Connect(function()
+                optBtn.BackgroundColor3 = (i % 2 == 0) and theme.surface or theme.surface2 or theme.bg
+                optBtn.BackgroundTransparency = 0
+            end)
+            
+            optBtn.MouseButton1Click:Connect(function()
+                selected = option
+                mainBtn.Text = self:GetLocalized(option)
+                if config.OnSelect then
+                    config.OnSelect(option)
+                end
+                toggleDropdown()
+            end)
+            
+            table.insert(optionButtons, optBtn)
+        end
+        
+        local totalHeight = #options * 30 + 4
+        list.Size = UDim2.new(1, 0, 0, totalHeight)
+    end
+    
+    local function toggleDropdown()
+        isOpen = not isOpen
+        list.Visible = isOpen
+        
+        if isOpen then
+            arrow.Text = "▲"
+            buildOptions()
+            local targetHeight = #options * 30 + 4
+            list.Size = UDim2.new(1, 0, 0, 0)
+            self:Animate(list, {Size = UDim2.new(1, 0, 0, targetHeight)}, 0.2)
+        else
+            arrow.Text = "▼"
+            local currentHeight = list.Size.Y.Offset
+            self:Animate(list, {Size = UDim2.new(1, 0, 0, 0)}, 0.15, nil, function()
+                list.Visible = false
+            end)
+        end
+    end
+    
+    mainBtn.MouseButton1Click:Connect(toggleDropdown)
+    
+    -- Close dropdown when clicking elsewhere
+    if UserInputService then
+        UserInputService.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 and isOpen then
+                local mousePos = UserInputService:GetMouseLocation()
+                local containerPos = container.AbsolutePosition
+                local containerSize = container.AbsoluteSize
+                
+                if not (mousePos.X >= containerPos.X and mousePos.X <= containerPos.X + containerSize.X and
+                       mousePos.Y >= containerPos.Y and mousePos.Y <= containerPos.Y + containerSize.Y) then
+                    toggleDropdown()
+                end
+            end
+        end)
+    end
+    
+    local dropdownData = {
+        Instance = container,
+        UpdateTheme = function(self)
+            local newTheme = self.Parent and self.Parent:GetTheme() or theme
+            mainBtn.BackgroundColor3 = newTheme.bg
+            mainBtn.TextColor3 = newTheme.text
+            arrow.TextColor3 = newTheme.textDim
+            list.BackgroundColor3 = newTheme.surface
+            list.BorderColor3 = newTheme.textDim
+            
+            for _, btn in ipairs(optionButtons) do
+                if btn then
+                    btn.TextColor3 = newTheme.text
+                    btn.BackgroundColor3 = newTheme.surface
+                end
+            end
+        end,
+        GetSelected = function(self)
+            return selected
+        end,
+        SetOptions = function(self, newOptions)
+            options = newOptions
+            if #options > 0 then
+                selected = config.Default or options[1]
+                mainBtn.Text = self:GetLocalized(selected)
+                if config.OnSelect then
+                    config.OnSelect(selected)
+                end
+                buildOptions()
+            end
+        end,
+        Select = function(self, option)
+            for _, opt in ipairs(options) do
+                if opt == option then
+                    selected = option
+                    mainBtn.Text = self:GetLocalized(option)
+                    if config.OnSelect then
+                        config.OnSelect(option)
+                    end
+                    if isOpen then toggleDropdown() end
+                    return true
+                end
+            end
+            return false
+        end
+    }
+    
+    dropdownData.Parent = self
+    
+    return dropdownData
+end
+
+-- ============================================
+-- NOTIFICATION CREATION
+-- ============================================
+function Nexus:CreateNotify(config)
+    if not self._frame then
+        self:Init()
+    end
+    
+    local theme = self:GetTheme()
+    local content = self:GetLocalized(config.Content or "Notification")
+    
+    local notif = createBaseElement("Frame", self._frame, {
+        Size = config.Size or UDim2.fromOffset(320, 50),
+        Position = UDim2.new(1, -340, 0, 20 + #self._notifications * 60),
+        BackgroundColor3 = theme.surface,
+        BackgroundTransparency = 0.1,
+        BorderSizePixel = 0,
+        ZIndex = 999,
+        ClipsDescendants = true
+    })
+    
+    self:CreateCorner(notif, 6)
+    self:CreateShadow(notif, 8, 0.3)
+    
+    -- Icon (optional)
+    if config.Icon then
+        local icon = createBaseElement("TextLabel", notif, {
+            Size = UDim2.new(0, 30, 1, 0),
+            Position = UDim2.new(0, 10, 0, 0),
+            BackgroundTransparency = 1,
+            Text = config.Icon,
+            TextColor3 = config.IconColor or theme.primary,
+            TextSize = 20,
+            Font = Enum.Font.GothamBold,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            TextYAlignment = Enum.TextYAlignment.Center,
+            ZIndex = 1000
+        })
+    end
+    
+    local label = createBaseElement("TextLabel", notif, {
+        Size = UDim2.new(1, -(config.Icon and 50 or 20), 1, 0),
+        Position = UDim2.new(0, config.Icon and 45 or 10, 0, 0),
+        BackgroundTransparency = 1,
+        Text = content,
+        TextColor3 = theme.text,
+        TextSize = 14,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ZIndex = 1000
+    })
+    
+    -- Title (optional)
+    if config.Title then
+        local titleText = self:GetLocalized(config.Title)
+        label.Size = UDim2.new(1, -(config.Icon and 50 or 20), 0, 20)
+        label.Position = UDim2.new(0, config.Icon and 45 or 10, 0, 5)
+        label.Text = titleText
+        label.TextSize = 12
+        label.TextColor3 = theme.textDim
+        label.Font = Enum.Font.GothamBold
+        
+        local subLabel = createBaseElement("TextLabel", notif, {
+            Size = UDim2.new(1, -(config.Icon and 50 or 20), 0, 20),
+            Position = UDim2.new(0, config.Icon and 45 or 10, 0, 25),
+            BackgroundTransparency = 1,
+            Text = content,
+            TextColor3 = theme.text,
+            TextSize = 14,
+            Font = Enum.Font.Gotham,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            ZIndex = 1000
+        })
+    end
+    
+    table.insert(self._notifications, notif)
+    
+    -- Slide in animation
+    notif.Position = UDim2.new(1, 0, 0, 20 + (#self._notifications - 1) * 60)
+    notif.BackgroundTransparency = 1
+    
+    self:Animate(notif, {
+        Position = UDim2.new(1, -340, 0, 20 + (#self._notifications - 1) * 60),
+        BackgroundTransparency = 0.1
+    }, 0.4)
+    
+    -- Auto remove
+    local duration = config.Duration or 3
+    task.wait(duration)
+    
+    self:Animate(notif, {
+        Position = UDim2.new(1, 0, 0, 20 + (#self._notifications - 1) * 60),
+        BackgroundTransparency = 1
+    }, 0.3, nil, function()
+        notif:Destroy()
+        for i, n in ipairs(self._notifications) do
+            if n == notif then
+                table.remove(self._notifications, i)
+                break
+            end
+        end
+    end)
+    
+    return notif
+end
+
+-- ============================================
+-- POPUP CREATION
+-- ============================================
+function Nexus:CreatePopup(config)
+    if not self._frame then
+        self:Init()
+    end
+    
+    local theme = self:GetTheme()
+    
+    local overlay = createBaseElement("Frame", self._frame, {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+        BackgroundTransparency = 0.5,
+        ZIndex = 999,
+        Visible = true
+    })
+    
+    local popup = createBaseElement("Frame", overlay, {
+        Size = config.Size or UDim2.fromOffset(400, 200),
+        Position = UDim2.fromScale(0.5, 0.5),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = theme.surface,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        ZIndex = 1000
+    })
+    
+    self:CreateCorner(popup, config.CornerRadius or 8)
+    self:CreateShadow(popup, 32, 0.5)
+    
+    local titleText = self:GetLocalized(config.Title or "Popup")
+    
+    local title = createBaseElement("TextLabel", popup, {
+        Size = UDim2.new(1, -20, 0, 40),
+        Position = UDim2.new(0, 10, 0, 10),
+        BackgroundTransparency = 1,
+        Text = titleText,
+        TextColor3 = theme.text,
+        TextSize = 18,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ZIndex = 1001
+    })
+    
+    local contentText = self:GetLocalized(config.Content or "Popup content here")
+    
+    local content = createBaseElement("TextLabel", popup, {
+        Size = UDim2.new(1, -20, 0, 60),
+        Position = UDim2.new(0, 10, 0, 55),
+        BackgroundTransparency = 1,
+        Text = contentText,
+        TextColor3 = theme.textDim,
+        TextSize = 14,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        ZIndex = 1001,
+        TextWrapped = true,
+        TextScaled = false,
+        ClipsDescendants = true
+    })
+    
+    -- Close button (X)
+    local closeBtn = createBaseElement("TextButton", popup, {
+        Size = UDim2.new(0, 30, 0, 30),
+        Position = UDim2.new(1, -36, 0, 6),
+        BackgroundTransparency = 1,
+        Text = "✕",
+        TextColor3 = theme.textDim,
+        TextSize = 16,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ZIndex = 1002
+    })
+    
+    closeBtn.MouseButton1Click:Connect(function()
+        if config.OnClose then
+            config.OnClose()
+        end
+        overlay:Destroy()
+    end)
+    
+    -- Buttons
+    local buttons = config.Buttons or {}
+    local btnWidth = config.ButtonWidth or 100
+    local totalWidth = #buttons * (btnWidth + 10) - 10
+    local startX = (popup.Size.X.Offset - totalWidth) / 2
+    
+    for i, btnConfig in ipairs(buttons) do
+        local btnText = self:GetLocalized(btnConfig.Title or "Button")
+        local isPrimary = btnConfig.Variant == "Primary" or i == #buttons
+        
+        local btn = self:CreateButton({
+            Text = btnText,
+            Size = UDim2.fromOffset(btnWidth, 32),
+            Position = UDim2.new(0, startX + (i-1) * (btnWidth + 10), 1, -45),
+            Color = isPrimary and theme.primary or theme.bg,
+            HoverColor = isPrimary and theme.primaryHover or theme.surface2,
+            Callback = function()
+                if btnConfig.Callback then
+                    btnConfig.Callback()
+                end
+                if btnConfig.CloseOnClick ~= false then
+                    overlay:Destroy()
+                end
+            end
+        })
+        btn.Instance.Parent = popup
+    end
+    
+    -- Click outside to close (optional)
+    if config.CloseOnClickOutside ~= false then
+        overlay.MouseButton1Click:Connect(function(input)
+            -- Check if click was on overlay (not on popup)
+            local popupPos = popup.AbsolutePosition
+            local popupSize = popup.AbsoluteSize
+            
+            if not (input.Position.X >= popupPos.X and input.Position.X <= popupPos.X + popupSize.X and
+                   input.Position.Y >= popupPos.Y and input.Position.Y <= popupPos.Y + popupSize.Y) then
+                overlay:Destroy()
+            end
+        end)
+    end
+    
+    table.insert(self._popups, overlay)
+    
+    return overlay
+end
+
+-- ============================================
+-- TOGGLE SWITCH CREATION
+-- ============================================
+function Nexus:CreateToggle(config)
+    config = config or {}
+    local theme = self:GetTheme()
+    local state = config.Default or false
+    
+    local container = createBaseElement("Frame", nil, {
+        Size = config.Size or UDim2.fromOffset(160, 30),
+        Position = config.Position or UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1,
+        ZIndex = config.ZIndex or 100
+    })
+    
+    local label = createBaseElement("TextLabel", container, {
+        Size = UDim2.new(1, -60, 1, 0),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1,
+        Text = self:GetLocalized(config.Text or "Toggle"),
+        TextColor3 = theme.text,
+        TextSize = config.TextSize or 14,
+        Font = config.Font or Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ZIndex = 101
+    })
+    
+    local track = createBaseElement("Frame", container, {
+        Size = UDim2.new(0, 40, 0, 22),
+        Position = UDim2.new(1, -45, 0, 4),
+        BackgroundColor3 = state and theme.primary or theme.bg,
+        BackgroundTransparency = state and 0 or 0.5,
+        BorderSizePixel = 0,
+        ZIndex = 101
+    })
+    
+    self:CreateCorner(track, 11)
+    
+    local thumb = createBaseElement("Frame", track, {
+        Size = UDim2.new(0, 18, 0, 18),
+        Position = UDim2.new(state and 1 or 0, state and -20 or 2, 0, 2),
+        BackgroundColor3 = theme.text,
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0,
+        ZIndex = 102
+    })
+    
+    self:CreateCorner(thumb, 9)
+    
+    -- Click area
+    local clickArea = createBaseElement("TextButton", container, {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = "",
+        ZIndex = 103,
+        AutoButtonColor = false
+    })
+    
+    local function toggle()
+        state = not state
+        track.BackgroundColor3 = state and theme.primary or theme.bg
+        track.BackgroundTransparency = state and 0 or 0.5
+        
+        self:Animate(thumb, {
+            Position = UDim2.new(state and 1 or 0, state and -20 or 2, 0, 2)
+        }, 0.15)
+        
+        if config.OnToggle then
+            config.OnToggle(state)
+        end
+    end
+    
+    clickArea.MouseButton1Click:Connect(toggle)
+    track.MouseButton1Click:Connect(toggle)
+    label.MouseButton1Click:Connect(toggle)
+    
+    local toggleData = {
+        Instance = container,
+        UpdateTheme = function(self)
+            local newTheme = self.Parent and self.Parent:GetTheme() or theme
+            track.BackgroundColor3 = state and newTheme.primary or newTheme.bg
+            label.TextColor3 = newTheme.text
+        end,
+        Toggle = function(self)
+            toggle()
+        end,
+        SetState = function(self, newState)
+            state = newState
+            track.BackgroundColor3 = state and theme.primary or theme.bg
+            track.BackgroundTransparency = state and 0 or 0.5
+            thumb.Position = UDim2.new(state and 1 or 0, state and -20 or 2, 0, 2)
+            if config.OnToggle then
+                config.OnToggle(state)
+            end
+        end,
+        GetState = function(self)
+            return state
+        end
+    }
+    
+    toggleData.Parent = self
+    
+    return toggleData
+end
+
+-- ============================================
+-- KEY SYSTEM UI (Helper)
+-- ============================================
+function Nexus:CreateKeySystemUI(config)
+    config = config or {}
+    local theme = self:GetTheme()
+    
+    local popup = self:CreatePopup({
+        Title = config.Title or "Key System",
+        Content = config.Content or "Please enter your license key to continue.",
+        Size = config.Size or UDim2.fromOffset(420, 280),
+        CloseOnClickOutside = false,
+        Buttons = {}
+    })
+    
+    -- Find the popup content
+    local popupFrame = popup:FindFirstChildWhichIsA("Frame")
+    if not popupFrame then return nil end
+    
+    -- Input field
+    local keyInput = self:CreateInput({
+        Size = UDim2.fromOffset(300, 32),
+        Position = UDim2.new(0, 60, 0, 100),
+        Placeholder = "Enter your key...",
+        ClearOnFocus = false
+    })
+    keyInput.Instance.Parent = popupFrame
+    
+    -- Status label
+    local statusLabel = self:CreateLabel({
+        Text = "",
+        TextSize = 12,
+        Position = UDim2.new(0, 60, 0, 150)
+    })
+    statusLabel.Instance.Parent = popupFrame
+    
+    -- Validate button
+    local validateBtn = self:CreateButton({
+        Text = "Validate",
+        Position = UDim2.new(0, 60, 0, 185),
+        Size = UDim2.fromOffset(120, 32),
+        Callback = function()
+            local key = keyInput:GetText()
+            if key == "" then
+                statusLabel:SetText("Please enter a key")
+                return
+            end
+            
+            local providerName = config.Provider or "default"
+            local isValid, message = self:CheckKey(key, providerName)
+            
+            if isValid then
+                statusLabel:SetText("✓ " .. (message or "Key validated!"))
+                statusLabel.Instance.TextColor3 = theme.success
+                
+                if config.OnSuccess then
+                    config.OnSuccess(key)
+                end
+                
+                task.wait(1)
+                popup:Destroy()
+            else
+                statusLabel:SetText("✗ " .. (message or "Invalid key"))
+                statusLabel.Instance.TextColor3 = theme.danger
+                
+                if config.OnFailure then
+                    config.OnFailure(key, message)
+                end
+            end
+        end
+    })
+    validateBtn.Instance.Parent = popupFrame
+    
+    return popup
+end
+
+-- ============================================
+-- EXPORT THE LIBRARY
+-- ============================================
+return Nexus
