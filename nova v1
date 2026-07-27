@@ -1,14 +1,14 @@
 --[[
-    EXECUTOR UI FRAMEWORK v2.0 - BLACK OPS EDITION
-    No modules. No bullshit. Pure executor power.
-    Drop this in any exploit and watch it work.
+    EXECUTOR UI FRAMEWORK v3.0 - PURE LUA 5.1 COMPATIBLE
+    Fixed all syntax errors, removed Luau-specific features
+    Works in ANY executor environment
 --]]
 
 -- ============================================
 -- SANDBOX KILLER: Ensure we run clean
 -- ============================================
 if getgenv and getgenv()._NOVA_EXECUTOR then
-    getgenv()._NOVA_EXECUTOR:Destroy()
+    pcall(function() getgenv()._NOVA_EXECUTOR:Destroy() end)
 end
 
 local Players = game:GetService("Players")
@@ -96,7 +96,7 @@ end
 function NovaUI.CreateGUI(title)
     -- Destroy existing GUI if present
     if activeGui then
-        pcall(function() activeGui:Destroy() end)
+        pcall(function() activeGui.ScreenGui:Destroy() end)
         activeGui = nil
     end
     
@@ -111,7 +111,7 @@ function NovaUI.CreateGUI(title)
     mainFrame.Name = "MainContainer"
     mainFrame.Size = UDim2.new(0.8, 0, 0.8, 0)
     mainFrame.Position = UDim2.new(0.1, 0, 0.1, 0)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    mainFrame.BackgroundColor3 = Color3.new(0.078, 0.078, 0.118)
     mainFrame.BackgroundTransparency = 0.15
     mainFrame.BorderSizePixel = 0
     mainFrame.ClipsDescendants = true
@@ -127,7 +127,7 @@ function NovaUI.CreateGUI(title)
     titleBar.Name = "TitleBar"
     titleBar.Size = UDim2.new(1, 0, 0.08, 0)
     titleBar.Position = UDim2.new(0, 0, 0, 0)
-    titleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    titleBar.BackgroundColor3 = Color3.new(0.157, 0.157, 0.235)
     titleBar.BackgroundTransparency = 0.2
     titleBar.BorderSizePixel = 0
     titleBar.Parent = mainFrame
@@ -142,7 +142,7 @@ function NovaUI.CreateGUI(title)
     titleText.Size = UDim2.new(1, 0, 1, 0)
     titleText.BackgroundTransparency = 1
     titleText.Text = title or "⚡ NOVA EXECUTOR ⚡"
-    titleText.TextColor3 = Color3.fromRGB(255, 200, 50)
+    titleText.TextColor3 = Color3.new(1, 0.784, 0.196)
     titleText.TextSize = 24
     titleText.Font = Enum.Font.GothamBold
     titleText.TextXAlignment = Enum.TextXAlignment.Center
@@ -154,7 +154,7 @@ function NovaUI.CreateGUI(title)
     closeBtn.Name = "CloseButton"
     closeBtn.Size = UDim2.new(0.06, 0, 0.8, 0)
     closeBtn.Position = UDim2.new(0.93, 0, 0.1, 0)
-    closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    closeBtn.BackgroundColor3 = Color3.new(0.784, 0.196, 0.196)
     closeBtn.BackgroundTransparency = 0.3
     closeBtn.BorderSizePixel = 0
     closeBtn.Text = "✕"
@@ -205,8 +205,8 @@ function NovaUI.CreateGUI(title)
     UserInputService.InputChanged:Connect(function(input)
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             local delta = input.Position - dragStart
-            local newX = math.clamp(dragOffset.X.Offset + delta.X, -mainFrame.AbsoluteSize.X/2, 1 - mainFrame.AbsoluteSize.X/2)
-            local newY = math.clamp(dragOffset.Y.Offset + delta.Y, -mainFrame.AbsoluteSize.Y/2, 1 - mainFrame.AbsoluteSize.Y/2)
+            local newX = math.max(-mainFrame.AbsoluteSize.X/2, math.min(1 - mainFrame.AbsoluteSize.X/2, dragOffset.X.Offset + delta.X))
+            local newY = math.max(-mainFrame.AbsoluteSize.Y/2, math.min(1 - mainFrame.AbsoluteSize.Y/2, dragOffset.Y.Offset + delta.Y))
             mainFrame.Position = UDim2.new(0, newX, 0, newY)
         end
     end)
@@ -244,7 +244,7 @@ function NovaUI.Frame(config)
     local frame = Instance.new("Frame")
     frame.Size = config.Size or UDim2.new(1, 0, 1, 0)
     frame.Position = config.Position or UDim2.new(0, 0, 0, 0)
-    frame.BackgroundColor3 = config.BackgroundColor3 or Color3.fromRGB(255, 255, 255)
+    frame.BackgroundColor3 = config.BackgroundColor3 or Color3.new(1, 1, 1)
     frame.BackgroundTransparency = config.BackgroundTransparency or 1
     frame.BorderSizePixel = config.BorderSizePixel or 0
     frame.ClipsDescendants = config.ClipsDescendants or false
@@ -283,7 +283,7 @@ function NovaUI.Button(text, onClick, config)
     local btn = Instance.new("TextButton")
     btn.Size = config.Size or UDim2.new(0.3, 0, 0.12, 0)
     btn.Position = config.Position or UDim2.new(0.35, 0, 0.44, 0)
-    btn.BackgroundColor3 = config.BackgroundColor3 or Color3.fromRGB(30, 144, 255)
+    btn.BackgroundColor3 = config.BackgroundColor3 or Color3.new(0.118, 0.565, 1)
     btn.BackgroundTransparency = config.BackgroundTransparency or 0
     btn.BorderSizePixel = config.BorderSizePixel or 0
     btn.Text = text or "Button"
@@ -302,8 +302,8 @@ function NovaUI.Button(text, onClick, config)
     
     -- Hover effects
     local defaultColor = btn.BackgroundColor3
-    local hoverColor = config.HoverColor or Color3.fromRGB(60, 170, 255)
-    local clickColor = config.ClickColor or Color3.fromRGB(0, 80, 200)
+    local hoverColor = config.HoverColor or Color3.new(0.235, 0.667, 1)
+    local clickColor = config.ClickColor or Color3.new(0, 0.314, 0.784)
     
     btn.MouseEnter:Connect(function()
         btn.BackgroundColor3 = hoverColor
@@ -331,14 +331,14 @@ function NovaUI.Input(placeholder, onChange, config)
     local input = Instance.new("TextBox")
     input.Size = config.Size or UDim2.new(0.8, 0, 0.1, 0)
     input.Position = config.Position or UDim2.new(0.1, 0, 0.2, 0)
-    input.BackgroundColor3 = config.BackgroundColor3 or Color3.fromRGB(40, 40, 50)
+    input.BackgroundColor3 = config.BackgroundColor3 or Color3.new(0.157, 0.157, 0.196)
     input.BackgroundTransparency = config.BackgroundTransparency or 0
     input.BorderSizePixel = config.BorderSizePixel or 2
-    input.BorderColor3 = config.BorderColor3 or Color3.fromRGB(70, 70, 90)
+    input.BorderColor3 = config.BorderColor3 or Color3.new(0.275, 0.275, 0.353)
     input.Text = ""
     input.PlaceholderText = placeholder or "Type here..."
     input.TextColor3 = config.TextColor3 or Color3.new(1, 1, 1)
-    input.PlaceholderColor3 = config.PlaceholderColor3 or Color3.fromRGB(150, 150, 150)
+    input.PlaceholderColor3 = config.PlaceholderColor3 or Color3.new(0.588, 0.588, 0.588)
     input.TextSize = config.TextSize or 16
     input.Font = config.Font or Enum.Font.Gotham
     input.ClearTextOnFocus = false
@@ -394,7 +394,7 @@ function NovaUI.ScrollingFrame(config)
     scroll.BackgroundTransparency = config.BackgroundTransparency or 1
     scroll.BorderSizePixel = 0
     scroll.ScrollBarThickness = config.ScrollBarThickness or 6
-    scroll.ScrollBarImageColor3 = config.ScrollBarColor or Color3.fromRGB(100, 100, 150)
+    scroll.ScrollBarImageColor3 = config.ScrollBarColor or Color3.new(0.392, 0.392, 0.588)
     scroll.ScrollBarImageTransparency = 0.7
     scroll.CanvasSize = config.CanvasSize or UDim2.new(0, 0, 0, 0)
     scroll.ClipsDescendants = true
@@ -432,7 +432,6 @@ function NovaUI.HorizontalList(parent, spacing, padding)
     local function addChild(child)
         table.insert(children, child)
         child.Parent = list
-        -- We'll reposition in the layout update
     end
     
     local function updateLayout()
@@ -479,7 +478,7 @@ function NovaUI.Toast(message, duration, color)
     end
     
     duration = duration or 2
-    color = color or Color3.fromRGB(30, 144, 255)
+    color = color or Color3.new(0.118, 0.565, 1)
     
     local toast = Instance.new("Frame")
     toast.Size = UDim2.new(0.4, 0, 0.08, 0)
@@ -534,18 +533,18 @@ function NovaUI.LoadingSpinner(parent, config)
     local spinner = Instance.new("ImageLabel")
     spinner.Size = UDim2.new(1, 0, 1, 0)
     spinner.BackgroundTransparency = 1
-    spinner.Image = "rbxassetid://0" -- Placeholder, we'll use a rotating frame
-    spinner.ImageColor3 = config.Color or Color3.fromRGB(255, 200, 50)
+    spinner.Image = "rbxassetid://0"
+    spinner.ImageColor3 = config.Color or Color3.new(1, 0.784, 0.196)
     spinner.Parent = container
     
     -- Create rotating circle using a frame with corner radius
     local circle = Instance.new("Frame")
     circle.Size = UDim2.new(0.8, 0, 0.8, 0)
     circle.Position = UDim2.new(0.1, 0, 0.1, 0)
-    circle.BackgroundColor3 = config.Color or Color3.fromRGB(255, 200, 50)
+    circle.BackgroundColor3 = config.Color or Color3.new(1, 0.784, 0.196)
     circle.BackgroundTransparency = 0.8
     circle.BorderSizePixel = 3
-    circle.BorderColor3 = config.Color or Color3.fromRGB(255, 200, 50)
+    circle.BorderColor3 = config.Color or Color3.new(1, 0.784, 0.196)
     circle.Parent = container
     
     local circleCorner = Instance.new("UICorner")
@@ -602,7 +601,7 @@ function NovaUI.Tabs(parent, tabs, config)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(buttonWidth - 0.02, 0, 1, 0)
         btn.Position = UDim2.new((i-1) * buttonWidth + 0.01, 0, 0, 0)
-        btn.BackgroundColor3 = config.ButtonColor or Color3.fromRGB(40, 40, 60)
+        btn.BackgroundColor3 = config.ButtonColor or Color3.new(0.157, 0.157, 0.235)
         btn.BackgroundTransparency = config.ButtonTransparency or 0.3
         btn.BorderSizePixel = 0
         btn.Text = tab.name or "Tab " .. i
@@ -628,11 +627,11 @@ function NovaUI.Tabs(parent, tabs, config)
         
         btn.MouseButton1Click:Connect(function()
             for j, b in ipairs(tabButtons) do
-                b.BackgroundColor3 = config.ButtonColor or Color3.fromRGB(40, 40, 60)
+                b.BackgroundColor3 = config.ButtonColor or Color3.new(0.157, 0.157, 0.235)
                 b.BackgroundTransparency = config.ButtonTransparency or 0.3
                 tabContents[j].Visible = false
             end
-            btn.BackgroundColor3 = config.ActiveColor or Color3.fromRGB(30, 144, 255)
+            btn.BackgroundColor3 = config.ActiveColor or Color3.new(0.118, 0.565, 1)
             btn.BackgroundTransparency = 0
             content.Visible = true
             activeTab = i
@@ -641,7 +640,7 @@ function NovaUI.Tabs(parent, tabs, config)
     
     -- Activate first tab
     if #tabButtons > 0 then
-        tabButtons[1].BackgroundColor3 = config.ActiveColor or Color3.fromRGB(30, 144, 255)
+        tabButtons[1].BackgroundColor3 = config.ActiveColor or Color3.new(0.118, 0.565, 1)
         tabButtons[1].BackgroundTransparency = 0
         tabContents[1].Visible = true
         activeTab = 1
@@ -683,7 +682,7 @@ function NovaUI.Alert(title, message, callback, config)
     local alertBox = Instance.new("Frame")
     alertBox.Size = config.Size or UDim2.new(0.5, 0, 0.4, 0)
     alertBox.Position = UDim2.new(0.25, 0, 0.3, 0)
-    alertBox.BackgroundColor3 = config.BackgroundColor or Color3.fromRGB(30, 30, 45)
+    alertBox.BackgroundColor3 = config.BackgroundColor or Color3.new(0.118, 0.118, 0.176)
     alertBox.BackgroundTransparency = 0.1
     alertBox.BorderSizePixel = 0
     alertBox.ClipsDescendants = true
@@ -699,7 +698,7 @@ function NovaUI.Alert(title, message, callback, config)
     titleText.Position = UDim2.new(0, 0, 0, 0)
     titleText.BackgroundTransparency = 1
     titleText.Text = title or "Alert"
-    titleText.TextColor3 = config.TitleColor or Color3.fromRGB(255, 200, 50)
+    titleText.TextColor3 = config.TitleColor or Color3.new(1, 0.784, 0.196)
     titleText.TextSize = config.TitleSize or 24
     titleText.Font = Enum.Font.GothamBold
     titleText.TextXAlignment = Enum.TextXAlignment.Center
@@ -724,7 +723,7 @@ function NovaUI.Alert(title, message, callback, config)
     local confirmBtn = Instance.new("TextButton")
     confirmBtn.Size = UDim2.new(0.3, 0, 0.15, 0)
     confirmBtn.Position = UDim2.new(0.1, 0, 0.75, 0)
-    confirmBtn.BackgroundColor3 = config.ConfirmColor or Color3.fromRGB(30, 144, 255)
+    confirmBtn.BackgroundColor3 = config.ConfirmColor or Color3.new(0.118, 0.565, 1)
     confirmBtn.BackgroundTransparency = 0
     confirmBtn.BorderSizePixel = 0
     confirmBtn.Text = config.ConfirmText or "Confirm"
@@ -741,7 +740,7 @@ function NovaUI.Alert(title, message, callback, config)
     local cancelBtn = Instance.new("TextButton")
     cancelBtn.Size = UDim2.new(0.3, 0, 0.15, 0)
     cancelBtn.Position = UDim2.new(0.6, 0, 0.75, 0)
-    cancelBtn.BackgroundColor3 = config.CancelColor or Color3.fromRGB(150, 50, 50)
+    cancelBtn.BackgroundColor3 = config.CancelColor or Color3.new(0.588, 0.196, 0.196)
     cancelBtn.BackgroundTransparency = 0
     cancelBtn.BorderSizePixel = 0
     cancelBtn.Text = config.CancelText or "Cancel"
